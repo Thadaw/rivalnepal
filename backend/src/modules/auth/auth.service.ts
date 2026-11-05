@@ -7,10 +7,16 @@ import { AppError } from "../../shared/errors";
 
 // In production the storefront and this API usually live on different sites
 // (e.g. Vercel + Render), so the session cookie has to be SameSite=None.
+// Derive that from the configured https origins too: hosts like Render often leave
+// NODE_ENV unset, and a Lax cookie is silently dropped on cross-site XHR.
+const crossSite =
+  config.NODE_ENV === "production" ||
+  config.CLIENT_ORIGIN.some((origin) => origin.startsWith("https://") && !origin.includes("localhost"));
+
 const COOKIE = {
   httpOnly: true,
-  sameSite: config.NODE_ENV === "production" ? "none" : "lax",
-  secure: config.NODE_ENV === "production",
+  sameSite: crossSite ? "none" : "lax",
+  secure: crossSite,
   path: "/",
 } as const;
 

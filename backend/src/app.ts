@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
-import { config } from "./shared/config";
+import { config, STOREFRONT_ORIGINS } from "./shared/config";
 import { AppError } from "./shared/errors";
 import { csrfGuard, errorHandler } from "./shared/middleware";
 import { adminApiRouter, publicApiRouter } from "./modules";
@@ -11,7 +11,8 @@ import { adminApiRouter, publicApiRouter } from "./modules";
 export const app = express();
 app.set("trust proxy", 1); // needed behind Render/Railway so rate limits see the real IP
 app.use(helmet());
-app.use(cors({ origin: config.CLIENT_ORIGIN, credentials: true }));
+const allowedOrigins = [...new Set([...config.CLIENT_ORIGIN, ...STOREFRONT_ORIGINS])];
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: "2mb" })); // payment screenshots arrive as base64
 app.use(cookieParser());
 app.use("/api", rateLimit({ windowMs: 15 * 60 * 1000, limit: 600, standardHeaders: true, legacyHeaders: false }));

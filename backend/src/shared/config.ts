@@ -1,6 +1,10 @@
 import "dotenv/config";
 import { z } from "zod";
 
+// Origins always allowed by CORS, even when CLIENT_ORIGIN on the server still
+// points at an older domain (e.g. after a Vercel project rename).
+export const STOREFRONT_ORIGINS = ["https://rivalnepal.vercel.app"];
+
 export const config = z
   .object({
     DATABASE_URL: z.string().min(1),
