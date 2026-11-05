@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum Category {
+  tshirts
+  hoodies
+  jackets
+  accessories
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  printing
+  shipped
+  delivered
+  cancelled
+}
+
+enum DeliveryArea {
+  valley
+  outside
+}
+
+enum MovementReason {
+  restock
+  return
+  correction
+  damaged
+  order
+  order_cancelled
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+}
+
+// All money is stored as whole NPR rupees.
+model Product {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  name        String
+  category    Category
+  price       Int
+  description String
+  tag         String?
+  images      String[]        @default([])
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  variants    Variant[]
+  designs     ProductDesign[]
+
+  @@index([category, active])
+}
+
+model Variant {
+  id        String          @id @default(cuid())
+  productId String
+  color     String
+  colorHex  String          @default("#1c1c1a")
+  size      String
+  sku       String          @unique
+  stock     Int             @default(0)
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  movements StockMovement[]
+  orderItems OrderItem[]
+
+  @@unique([productId, color, size])
+}
+
+model Design {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  active      Boolean         @default(true)
+  products    ProductDesign[]
+}
+
+model ProductDesign {
+  productId String
+  designId  String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  design    Design  @relation(fields: [designId], references: [id], onDelete: Cascade)
+
+  @@id([productId, designId])
+}
+
+model Order {
+  id            String       @id // e.g. RV-482913
+  status        OrderStatus  @default(pending)
+  customerName  String
+  phone         String
+  email         String?
+  district      String
+  city          String
+  address       String
+  landmark      String?
+  note          String?
+  deliveryArea  DeliveryArea
+  payment       String       @default("cod")
+  paymentImage  String?
+  subtotal      Int
+  shipping      Int
+  total         Int
+  stockDeducted Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  items         OrderItem[]
+  movements     StockMovement[]
+
+  @@index([status, createdAt])
+}
+
+// Name, colour, size and price are copied at order time so history survives product edits.
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  variantId String?
+  productId String?
+  name      String
+  color     String
+  size      String
+  qty       Int
+  price     Int
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant   Variant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+}
+
+// Drop-alert mailing list. The address is stored lowercased so a second signup is a no-op.
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model StockMovement {
+  id        String         @id @default(cuid())
+  variantId String
+  delta     Int
+  reason    MovementReason
+  note      String?
+  orderId   String?
+  createdAt DateTime       @default(now())
+  variant   Variant        @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  order     Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}
